@@ -6176,17 +6176,21 @@ class TestNN(NNTestCase):
             self.assertIn('Please ensure they have the same size.', str(w[0]))
 
     def test_poisson_nll_loss_reduction_modes(self):
-        input = torch.tensor([0.5, 1.5, 2.5])
-        target = torch.tensor([1., 2., 3.])
-        component_wise_loss = torch.exp(input) - target * input
-        self.assertEqual(component_wise_loss,
-                         F.poisson_nll_loss(input, target, reduction='none'))
-        self.assertEqual(torch.sum(component_wise_loss),
-                         F.poisson_nll_loss(input, target, reduction='sum'))
-        self.assertEqual(torch.mean(component_wise_loss),
-                         F.poisson_nll_loss(input, target, reduction='mean'))
-        with self.assertRaisesRegex(ValueError, 'is not valid'):
-            F.poisson_nll_loss(input, target, reduction='total')
+        dtypes = [ torch.float, torch.bfloat16 ]
+        for dtype in dtypes:
+            if dtype == torch.bfloat16 and TEST_CUDA:
+                continue
+            input = torch.tensor([0.5, 1.5, 2.5]).to(dtype=dtype)
+            target = torch.tensor([1., 2., 3.]).to(dtype=dtype)
+            component_wise_loss = torch.exp(input) - target * input
+            self.assertEqual(component_wise_loss,
+                             F.poisson_nll_loss(input, target, reduction='none'))
+            self.assertEqual(torch.sum(component_wise_loss),
+                             F.poisson_nll_loss(input, target, reduction='sum'))
+            self.assertEqual(torch.mean(component_wise_loss),
+                             F.poisson_nll_loss(input, target, reduction='mean'))
+            with self.assertRaisesRegex(ValueError, 'is not valid'):
+                F.poisson_nll_loss(input, target, reduction='total')
 
     def test_gaussian_nll_loss_reduction_modes(self):
         input = torch.tensor([[0.5, 1.5, 2.5], [2., 4., 6.]])
