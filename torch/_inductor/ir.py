@@ -2259,14 +2259,14 @@ class ExternKernel(InputsKernel):
                     new_args.append(next(it_non_tensors))
             return pytree.tree_unflatten(new_args, args_spec)
 
-        tensor_args = [cls.realize_input(x) for x in tensor_args]
-
-        # freeze layout otherwise our output stride calculation might
-        # become incorrect
-        for x in tensor_args:
-            if is_storage_and_layout(x):
-                as_storage_and_layout(x, freeze=True)
-
+        if kernel == torch.ops.aten.convolution:
+            tensor_args = [
+                cls.require_stride1(cls.realize_input(x)) for x in tensor_args
+            ]
+        else:
+            tensor_args = [
+                cls.require_contiguous(cls.realize_input(x)) for x in tensor_args
+            ]
         # We don't have generic shape formulas, so just burn in the
         # shapes and run an example input.
         # TODO(jansel): replace this with dynamic shape formulas
