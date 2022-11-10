@@ -17,6 +17,7 @@ from contextlib import contextmanager
 
 import numpy as np
 import pandas as pd
+import psutil
 import torch
 
 import torch._dynamo
@@ -390,7 +391,6 @@ def speedup_experiment(args, model_iter_fn, model, example_inputs, **kwargs):
                 if should_randomize_input
                 else example_inputs
             )
-
             # interleave the runs to handle frequency scaling and load changes
             timings[rep, 0], expected_output = timed(
                 baseline_model, baseline_model_iter_fn, inputs, return_result=True
@@ -407,6 +407,8 @@ def speedup_experiment(args, model_iter_fn, model, example_inputs, **kwargs):
     pvalue = ttest_ind(timings[:, 0], timings[:, 1]).pvalue
     median = np.median(timings, axis=0)
     speedup = median[0] / median[1]
+    print(current_name, "Time cost")
+    print("eager: {}, {}: {}".format(median[0], args.backend if args.backend is not None else "inductor", median[1]))
     if args.dump_raw_metrics:
         np.save(
             f"{output_filename[:-4]}-raw_timings-{current_name}-{current_device}.npy",
@@ -1162,6 +1164,10 @@ class BenchmarkRunner:
                 latency = t1 - t0
                 if current_device == "cuda":
                     peak_mem = get_peak_memory()
+                elif current_device == "cpu":
+                    total = psutil.virtual_memory().total
+                    percentage = psutil.Process(os.getpid()).memory_percent()
+                    peak_mem = percentage * total / 10**9
             except Exception as e:
                 log.exception(f"Failed for {mode} {e}")
                 return sys.exit(-1)
@@ -1811,7 +1817,13 @@ def run(runner, args, original_dir=None):
     elif args.nothing:
         pass
     elif args.backend:
-        optimize_ctx = torch._dynamo.optimize(args.backend, nopython=args.nopython)
+        if args.backend == "ipex":
+            if args.float32:
+                optimize_ctx = torch._dynamo.optimize(backends.ipex_fp32)
+            elif args.amp:
+                optimize_ctx = torch._dynamo.optimize(backends.ipex_bf16)
+        else:
+            optimize_ctx = torch._dynamo.optimize(args.backend, nopython=args.nopython)
         experiment = speedup_experiment
         if args.accuracy:
             output_filename = f"accuracy_{args.backend}.csv"
