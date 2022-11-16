@@ -1,8 +1,8 @@
 import torch
 
-import torch._dynamo
-import torch._dynamo.config
-import torch._inductor.config as config
+import torchdynamo
+import torchdynamo.config
+import torchinductor.config as config
 import triton
 from benchmark_helper import time_with_torch_timer
 
@@ -12,12 +12,12 @@ torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
 
-@torch._dynamo.optimize("inductor", nopython=True)
+@torchdynamo.optimize("inductor", nopython=True)
 def inductor_aten_mm(a, b):
     return torch.mm(a, b)
 
 
-@torch._dynamo.optimize("inductor", nopython=True)
+@torchdynamo.optimize("inductor", nopython=True)
 def inductor_triton_mm(a, b):
     return torch.mm(a, b)
 
@@ -56,7 +56,7 @@ def test_total_time(shapes):
 
         print(torch_ms, triton_ms, ind_aten_ms, ind_triton_ms, sep="; ")
 
-        torch._dynamo.reset()
+        torchdynamo.reset()
 
 
 def test_GPU_time(shapes):
@@ -79,7 +79,7 @@ def test_GPU_time(shapes):
         ind_triton_ms, _, _ = triton.testing.do_bench(lambda: inductor_triton_mm(a, b))
         print(torch_ms, triton_ms, ind_aten_ms, ind_triton_ms, sep="; ")
 
-        torch._dynamo.reset()
+        torchdynamo.reset()
 
 
 if __name__ == "__main__":

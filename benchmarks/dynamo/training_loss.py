@@ -7,7 +7,7 @@ from datetime import timedelta
 
 import torch
 
-import torch._dynamo
+import torchdynamo
 from datasets import load_dataset, load_metric
 from torch.utils.data import DataLoader
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
@@ -62,7 +62,7 @@ def model_training_evaluation(
         opt_training_iter_fn = training_iter_fn
     else:
         # Support backends: eager, aot_eager, aot_nvfuser and inductor
-        opt_training_iter_fn = torch._dynamo.optimize(backend)(training_iter_fn)
+        opt_training_iter_fn = torchdynamo.optimize(backend)(training_iter_fn)
     for epoch in range(num_epochs):
         running_loss = 0.0
         for i, batch in enumerate(train_dataloader, 0):
@@ -79,7 +79,7 @@ def model_training_evaluation(
         if not backend:
             opt_model = model
         else:
-            opt_model = torch._dynamo.optimize(backend)(model)
+            opt_model = torchdynamo.optimize(backend)(model)
         for batch in eval_dataloader:
             batch = {k: v.to(device) for k, v in batch.items()}
             with torch.no_grad():
@@ -128,7 +128,7 @@ def parse_args():
     )
     parser.add_argument(
         "--backend",
-        choices=torch._dynamo.list_backends(),
+        choices=torchdynamo.list_backends(),
         default="inductor",
         help="train/evaluate model with a given backend (default: inductor)",
     )

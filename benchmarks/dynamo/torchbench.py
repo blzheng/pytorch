@@ -15,30 +15,35 @@ try:
 except ImportError:
     from common import BenchmarkRunner, main
 
-from torch._dynamo.testing import collect_results, reduce_to_scalar_loss
-from torch._dynamo.utils import clone_inputs
+from torchdynamo.testing import collect_results, reduce_to_scalar_loss
+from torchdynamo.utils import clone_inputs
 
 # We are primarily interested in tf32 datatype
 torch.backends.cuda.matmul.allow_tf32 = True
-original_dir = abspath(os.getcwd())
 
-os.environ["KALDI_ROOT"] = "/tmp"  # avoids some spam
-for torchbench_dir in (
-    "./torchbenchmark",
-    "../torchbenchmark",
-    "../torchbench",
-    "../benchmark",
-    "../../torchbenchmark",
-    "../../torchbench",
-    "../../benchmark",
-):
+
+def setup_torchbench_cwd():
+    original_dir = abspath(os.getcwd())
+
+    os.environ["KALDI_ROOT"] = "/tmp"  # avoids some spam
+    for torchbench_dir in (
+        "./torchbenchmark",
+        "../torchbenchmark",
+        "../torchbench",
+        "../benchmark",
+        "../../torchbenchmark",
+        "../../torchbench",
+        "../../benchmark",
+    ):
+        if exists(torchbench_dir):
+            break
+
     if exists(torchbench_dir):
-        break
+        torchbench_dir = abspath(torchbench_dir)
+        os.chdir(torchbench_dir)
+        sys.path.append(torchbench_dir)
 
-if exists(torchbench_dir):
-    torchbench_dir = abspath(torchbench_dir)
-    os.chdir(torchbench_dir)
-    sys.path.append(torchbench_dir)
+    return original_dir
 
 
 # Some models have large dataset that doesn't fit in memory. Lower the batch
@@ -212,7 +217,7 @@ class TorchBenchmarkRunner(BenchmarkRunner):
 
     @property
     def skip_accuracy_checks_large_models_dashboard(self):
-        if self.args.dashboard:
+        if self.args.dashboard or self.args.accuracy:
             return SKIP_ACCURACY_CHECK_MODELS
         return set()
 
@@ -271,6 +276,38 @@ class TorchBenchmarkRunner(BenchmarkRunner):
         # the right example_inputs
         if model_name == "yolov3":
             example_inputs = (torch.rand(batch_size, 3, 384, 512).to(device),)
+
+        if self.args.channels_last:
+            try:
+                model = model.to(memory_format=torch.channels_last).eval()
+                if isinstance(example_inputs, torch.Tensor) and example_inputs.dim()==4:
+                    example_inputs = example_inputs.to(memory_format=torch.channels_last)
+                elif isinstance(example_inputs, tuple):
+                    new_example_inputs = []
+                    for item in example_inputs:
+                        if isinstance(item, torch.Tensor) and item.dim()==4:
+                            new_example_inputs.append(item.to(memory_format=torch.channels_last))
+                        else:
+                            new_example_inputs.append(item)
+                    example_inputs = tuple(new_example_inputs)
+                elif isinstance(example_inputs, list):
+                    new_example_inputs = []
+                    for item in example_inputs:
+                        if isinstance(item, torch.Tensor) and item.dim()==4:
+                            new_example_inputs.append(item.to(memory_format=torch.channels_last))
+                        else:
+                            new_example_inputs.append(item)
+                    example_inputs = new_example_inputs
+                elif isinstance(example_inputs, dict):
+                    new_example_inputs = {}
+                    for k in example_inputs.keys():
+                        if isinstance(example_inputs[k], torch.Tensor) and example_inputs[k].dim() ==4:
+                            new_example_inputs[k] = example_inputs[k].to(memory_format=torch.channels_last)
+                        else:
+                            new_example_inputs[k] = example_inputs[k]
+                    example_inputs = new_example_inputs
+            except Exception:
+                pass
         # global current_name, current_device
         # current_device = device
         # current_name = benchmark.name
@@ -325,7 +362,7 @@ class TorchBenchmarkRunner(BenchmarkRunner):
 
     def forward_and_backward_pass(self, mod, inputs, collect_outputs=True):
         cloned_inputs = clone_inputs(inputs)
-        mod.zero_grad(True)
+        self.optimizer_zero_grad()
         with self.autocast():
             pred = mod(*cloned_inputs)
             loss = self.compute_loss(pred)
@@ -337,7 +374,7 @@ class TorchBenchmarkRunner(BenchmarkRunner):
 
 
 if __name__ == "__main__":
-
+    original_dir = setup_torchbench_cwd()
     logging.basicConfig(level=logging.WARNING)
     warnings.filterwarnings("ignore")
     main(TorchBenchmarkRunner(), original_dir)

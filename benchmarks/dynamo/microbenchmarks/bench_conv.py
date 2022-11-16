@@ -1,7 +1,7 @@
 import model
 import torch
 
-import torch._inductor.triton_ops
+import torchinductor.triton_ops
 import triton
 
 # The flag below controls whether to allow TF32 on matmul. This flag defaults to True.
@@ -107,7 +107,7 @@ def bench_op(
     elif provider == "triton":
 
         def fn():
-            return torch._inductor.triton_ops.conv(
+            return torchinductor.triton_ops.conv(
                 x, w, bias, stride, padding, dilation, False, (0, 0), groups
             )
 

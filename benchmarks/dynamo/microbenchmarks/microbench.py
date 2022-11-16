@@ -7,11 +7,11 @@ import numpy as np
 import tabulate
 import torch
 
-import torch._inductor
-from torch._dynamo.optimizations.backends import cudagraphs_inner
-from torch._dynamo.testing import same
-from torch._inductor.compile_fx import compile_fx
-from torch._inductor.utils import timed
+import torchinductor
+from torchdynamo.optimizations.backends import cudagraphs_inner
+from torchdynamo.testing import same
+from torchinductor.compile_fx import compile_fx
+from torchinductor.utils import timed
 
 try:
     import test.test_torchinductor as tti
@@ -121,25 +121,25 @@ def main():
     args.size = args.size or [64, 256, 1024, 4096, 8192]
 
     if args.nvfuser:
-        torch._C._jit_override_can_fuse_on_cpu(False)
-        torch._C._jit_override_can_fuse_on_gpu(False)
-        torch._C._jit_set_texpr_fuser_enabled(False)
-        torch._C._jit_set_nvfuser_enabled(True)
+        torchC._jit_override_can_fuse_on_cpu(False)
+        torchC._jit_override_can_fuse_on_gpu(False)
+        torchC._jit_set_texpr_fuser_enabled(False)
+        torchC._jit_set_nvfuser_enabled(True)
     else:
-        torch._C._jit_override_can_fuse_on_cpu(torch._C._llvm_enabled())
-        torch._C._jit_override_can_fuse_on_gpu(True)
-        torch._C._jit_set_texpr_fuser_enabled(True)
+        torchC._jit_override_can_fuse_on_cpu(torchC._llvm_enabled())
+        torchC._jit_override_can_fuse_on_gpu(True)
+        torchC._jit_set_texpr_fuser_enabled(True)
         if torch.cuda.is_available():
-            torch._C._jit_set_nvfuser_enabled(False)
+            torchC._jit_set_nvfuser_enabled(False)
 
     if args.threads:
         torch.set_num_threads(args.threads)
-        torch._inductor.config.cpp.threads = args.threads
+        torchinductor.config.cpp.threads = args.threads
 
     if args.verbose:
-        torch._inductor.config.debug = True
+        torchinductor.config.debug = True
 
-    torch._inductor.config.triton.autotune = True
+    torchinductor.config.triton.autotune = True
 
     rows = []
     for model in (MicroBenchmarks.sum,):

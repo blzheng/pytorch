@@ -1,13 +1,13 @@
 # flake8: noqa
 import torch
 
-import torch._dynamo
-import torch._inductor.config
+import torchdynamo
+import torchinductor.config
 import triton
 from prettytable import PrettyTable
 
-# torch._inductor.config.debug = True
-torch._inductor.config.triton.dense_indexing = True
+# torchinductor.config.debug = True
+torchinductor.config.triton.dense_indexing = True
 torch.manual_seed(0)
 
 
@@ -17,25 +17,25 @@ torch.backends.cuda.matmul.allow_tf32 = True
 
 class Func(object):
     # mm
-    @torch._dynamo.optimize("inductor")
+    @torchdynamo.optimize("inductor")
     def mm(a, b, bias):
         y = torch.mm(a, b)
         return y
 
     # mm+bias
-    @torch._dynamo.optimize("inductor")
+    @torchdynamo.optimize("inductor")
     def mm_add(a, b, bias):
         y = torch.mm(a, b)
         return y + bias
 
     # relu(mm)
-    @torch._dynamo.optimize("inductor")
+    @torchdynamo.optimize("inductor")
     def mm_relu(a, b, bias):
         y = torch.mm(a, b)
         return torch.relu(y)
 
     # relu(mm+bias)
-    @torch._dynamo.optimize("inductor")
+    @torchdynamo.optimize("inductor")
     def mm_add_relu(a, b, bias):
         y = torch.mm(a, b)
         y += bias
@@ -72,15 +72,15 @@ def bench(shape, layer_id, p, fusion_types=[""]):
         def fn():
             return fn_mm(*args)
 
-        torch._inductor.config.triton.mm = "aten"
+        torchinductor.config.triton.mm = "aten"
         torch_mm_ms, _, _ = triton.testing.do_bench(fn)
-        torch._inductor.config.triton.mm = "triton"
+        torchinductor.config.triton.mm = "triton"
         # reset to force code gen new python code
-        torch._dynamo.reset()
-        torch._inductor.metrics.reset()
+        torchdynamo.reset()
+        torchinductor.metrics.reset()
         triton_mm_ms, _, _ = triton.testing.do_bench(fn)
         assert (
-            torch._inductor.metrics.generated_kernel_count == 1
+            torchinductor.metrics.generated_kernel_count == 1
         ), "codegen #kernel != 1"
         row.extend([tflops(torch_mm_ms), tflops(triton_mm_ms)])
 

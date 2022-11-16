@@ -1,10 +1,10 @@
 import model
 import torch
 
-import torch._dynamo
-import torch._inductor
-import torch._inductor.config as config
-import torch._inductor.triton_ops
+import torchdynamo
+import torchinductor
+import torchinductor.config as config
+import torchinductor.triton_ops
 import triton
 
 # The flag below controls whether to allow TF32 on matmul. This flag defaults to True.
@@ -111,14 +111,14 @@ def bench_op(
     elif provider == "triton_conv":
 
         def fn():
-            return torch._inductor.triton_ops.conv(
+            return torchinductor.triton_ops.conv(
                 x, w, bias, stride, padding, dilation, False, (0, 0), groups
             )
 
     elif provider == "triton_conv1x1":
 
         def fn():
-            return torch._inductor.triton_ops.conv1x1(
+            return torchinductor.triton_ops.conv1x1(
                 x, w, bias, stride, padding, dilation, False, (0, 0), groups
             )
 
@@ -127,7 +127,7 @@ def bench_op(
 
     elif provider == "autotune":
 
-        @torch._dynamo.optimize("inductor")
+        @torchdynamo.optimize("inductor")
         def wrap_conv(*args, **kwargs):
             return torch.conv2d(*args, **kwargs)
 

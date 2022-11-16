@@ -4,13 +4,13 @@ import numpy as np
 import torch
 from operator_inp_utils import OperatorInputsLoader
 
-from torch._dynamo.optimizations.backends import cudagraphs_inner
-from torch._dynamo.testing import same
-from torch._inductor import config as inductor_config
-from torch._inductor.compile_fx import compile_fx
-from torch._inductor.decomposition import decompositions
-from torch._inductor.lowering import fallbacks, lowerings
-from torch._inductor.utils import gen_gm_and_inputs
+from torchdynamo.optimizations.backends import cudagraphs_inner
+from torchdynamo.testing import same
+from torchinductor import config as inductor_config
+from torchinductor.compile_fx import compile_fx
+from torchinductor.decomposition import decompositions
+from torchinductor.lowering import fallbacks, lowerings
+from torchinductor.utils import gen_gm_and_inputs
 
 aten = torch.ops.aten
 
@@ -44,9 +44,13 @@ def compute_speedups(
                 )
                 timings[rep, m] = median_ms
             else:
-                from torch._inductor.utils import timed
+                from torchinductor.utils import timed
 
-                timings[rep, m] = timed(model, example_inputs)
+                # warmup
+                model(*example_inputs)
+                model(*example_inputs)
+                model(*example_inputs)
+                timings[rep, m] = timed(model, example_inputs, 10) / 10
     return np.median(timings, axis=0)
 
 
@@ -57,7 +61,7 @@ def strip_overloads(gm):
         gm(fx.GraphModule): The input Fx graph module to be modified
     """
     for node in gm.graph.nodes:
-        if isinstance(node.target, torch._ops.OpOverload):
+        if isinstance(node.target, torchops.OpOverload):
             node.target = node.target.overloadpacket
     gm.recompile()
 
@@ -120,7 +124,7 @@ def skip_operator(operator):
 
     # some of inductor registered to the OpOverload, some registered to OpOverloadPacket
     op_impls = [operator]
-    if isinstance(operator, torch._ops.OpOverload):
+    if isinstance(operator, torchops.OpOverload):
         op_impls.append(operator.overloadpacket)
 
     if any(op in fallbacks for op in op_impls):
@@ -220,7 +224,7 @@ def benchmark(
             except Exception as e:
                 print(f"error {operator}")
                 print(e)
-                raise e
+                # raise e
 
         if not timings:
             continue
