@@ -330,9 +330,8 @@ class TransformerModel(nn.Module):
         super(TransformerModel, self).__init__()
         try:
             from torch.nn import TransformerEncoder, TransformerEncoderLayer
-        except Exception as e:
-            raise ImportError('TransformerEncoder module does not exist in PyTorch 1.1 or '
-                              'lower.') from e
+        except Exception:
+            raise ImportError('TransformerEncoder module does not exist in PyTorch 1.1 or lower.')
         self.model_type = 'Transformer'
         self.src_mask = None
         self.pos_encoder = PositionalEncoding(ninp, dropout)
