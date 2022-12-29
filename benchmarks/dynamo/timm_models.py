@@ -25,7 +25,6 @@ except ModuleNotFoundError:
     print("Installing Pytorch Image Models...")
     pip_install("git+https://github.com/rwightman/pytorch-image-models")
 finally:
-    from timm import __version__ as timmversion
     from timm.data import resolve_data_config
     from timm.models import create_model
 
@@ -187,8 +186,7 @@ class TimmRunnner(BenchmarkRunner):
 
         retries = 1
         success = False
-        model = None
-        while not success and retries < 6:
+        while not success and retries < 4:
             try:
                 model = create_model(
                     model_name,
@@ -211,9 +209,6 @@ class TimmRunnner(BenchmarkRunner):
                 time.sleep(wait)
                 retries += 1
 
-        if model is None:
-            raise RuntimeError(f"Failed to load model '{model_name}'")
-
         model.to(
             device=device,
             memory_format=torch.channels_last if channels_last else None,
@@ -222,9 +217,7 @@ class TimmRunnner(BenchmarkRunner):
         self.num_classes = model.num_classes
 
         data_config = resolve_data_config(
-            vars(self._args) if timmversion >= "0.8.0" else self._args,
-            model=model,
-            use_test_size=not is_training,
+            self._args, model=model, use_test_size=not is_training
         )
         input_size = data_config["input_size"]
         recorded_batch_size = TIMM_MODELS[model_name]
@@ -264,6 +257,8 @@ class TimmRunnner(BenchmarkRunner):
             model.train()
         else:
             model.eval()
+
+        self.init_optimizer(device, model.parameters())
 
         self.validate_model(model, example_inputs)
 
