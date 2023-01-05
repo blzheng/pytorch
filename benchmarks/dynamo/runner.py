@@ -274,6 +274,14 @@ def parse_args():
         default=None,
         help="number of threads to use for eager and inductor.",
     )
+    parser.add_argument(
+        "--start_core", "-s", type=int, default=None, help="start core idx"
+    )
+    parser.add_argument(
+        "--end_core", "-e", type=int, default=None, help="end core idx"
+    )
+    parser.add_argument(
+        "--membind", "-m", type=int, default=0, help="membind")
     launcher_group = parser.add_argument_group("CPU Launcher Parameters")
     launcher_group.add_argument(
         "--enable_cpu_launcher",
@@ -338,6 +346,15 @@ def generate_commands(args, dtypes, suites, devices, compilers, output_dir):
         lines.append(f"rm -rf {output_dir}")
         lines.append(f"mkdir {output_dir}")
         lines.append("")
+        if "cpu" in devices:
+            lines.append("CORES=`lscpu | grep Core | awk '{print $4}'`")
+            if args.start_core is not None and args.end_core is not None:
+                lines.append("start_core={}".format(args.start_core))
+                lines.append("end_core={}".format(args.end_core))
+            if args.start_core is None:
+                lines.append("start_core=0")
+            if args.end_core is None:
+                lines.append("end_core=`expr $CORES - 1`")
 
         for testing in ["performance", "accuracy"]:
             for iter in itertools.product(suites, devices, dtypes):
@@ -349,10 +366,14 @@ def generate_commands(args, dtypes, suites, devices, compilers, output_dir):
                 for compiler in compilers:
                     base_cmd = info[compiler]
                     output_filename = f"{output_dir}/{generate_csv_name(args, dtype, suite, device, compiler, testing)}"
-                    launcher_cmd = "python"
-                    if args.enable_cpu_launcher:
-                        launcher_cmd = f"python -m torch.backends.xeon.run_cpu {args.cpu_launcher_args}"
-                    cmd = f"{launcher_cmd} benchmarks/dynamo/{suite}.py --{testing} --{dtype} -d{device} --output={output_filename}"
+                    # launcher_cmd = "python"
+                    numactl = ""
+                    if device == "cpu":
+                        numactl = "numactl -C $start_core-$end_core --membind={}".format(args.membind)
+                    # if args.enable_cpu_launcher:
+                    #     launcher_cmd = f"python -m torch.backends.xeon.run_cpu {args.cpu_launcher_args}"
+                    # cmd = f"{launcher_cmd} benchmarks/dynamo/{suite}.py --{testing} --{dtype} -d{device} --output={output_filename}"
+                    cmd = f"{numactl} python benchmarks/dynamo/{suite}.py --{testing} --{dtype} -d{device} --output={output_filename}"
                     cmd = f"{cmd} {base_cmd} {args.extra_args} --no-skip --dashboard"
                     skip_tests_str = get_skip_tests(suite)
                     cmd = f"{cmd} {skip_tests_str}"
