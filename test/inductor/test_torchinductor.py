@@ -5622,6 +5622,21 @@ if HAS_CPU:
                     kernel_profile_events.append(e.name)
             assert len(kernel_profile_events) > 0
 
+        def test_input_is_inplace_view(self):
+            @torch._dynamo.optimize("inductor")
+            def fn(a):
+                unsqueeze_ = torch.ops.aten.unsqueeze_.default(a, 0)
+                return unsqueeze_
+
+            args = [
+                ((1, 1, 1, 12, 11, 3), (396, 396, 396, 33, 3, 1), torch.int64, "cpu")
+            ]
+            args = [rand_strided(sh, st, dt, dev) for (sh, st, dt, dev) in args]
+            out = fn(*args)
+            assert args[0].shape == (1, 1, 1, 1, 12, 11, 3)
+            assert args[0].stride() == (396, 396, 396, 396, 33, 3, 1)
+            assert out.equal(args[0])
+
 
 if HAS_CUDA:
     import triton
