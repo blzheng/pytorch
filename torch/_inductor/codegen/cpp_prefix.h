@@ -92,3 +92,18 @@ inline at::vec::Vectorized<float> to_float_mask(at::vec::Vectorized<int>& src) {
 #endif
 }
 #endif
+#if defined(CPU_CAPABILITY_AVX512)
+
+#define TILE2D_COPY_TRANSPOSE(dst, src, ld_dst, ld_src)       \
+  do {                                                        \
+    at::vec::transpose_kernel_16x16(src, ld_src, dst, ld_dst);  \
+  } while (0);
+
+#elif defined(CPU_CAPABILITY_AVX2)
+
+#define TILE2D_COPY_TRANSPOSE(dst, src, ld_dst, ld_src)       \
+  do {                                                        \
+    at::vec::transpose_kernel_8x8(src, ld_src, dst, ld_dst);    \
+  } while (0);
+
+#endif
