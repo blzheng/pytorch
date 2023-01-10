@@ -424,6 +424,37 @@ class HuggingfaceRunner(BenchmarkRunner):
         example_inputs = generate_inputs_for_model(
             model_cls, model, model_name, batch_size, device, include_loss_args=True
         )
+        if self.args.channels_last:
+            try:
+                model = model.to(memory_format=torch.channels_last).eval()
+                if isinstance(example_inputs, torch.Tensor) and example_inputs.dim()==4:
+                    example_inputs = example_inputs.to(memory_format=torch.channels_last)
+                elif isinstance(example_inputs, tuple):
+                    new_example_inputs = []
+                    for item in example_inputs:
+                        if isinstance(item, torch.Tensor) and item.dim()==4:
+                            new_example_inputs.append(item.to(memory_format=torch.channels_last))
+                        else:
+                            new_example_inputs.append(item)
+                    example_inputs = tuple(new_example_inputs)
+                elif isinstance(example_inputs, list):
+                    new_example_inputs = []
+                    for item in example_inputs:
+                        if isinstance(item, torch.Tensor) and item.dim()==4:
+                            new_example_inputs.append(item.to(memory_format=torch.channels_last))
+                        else:
+                            new_example_inputs.append(item)
+                    example_inputs = new_example_inputs
+                elif isinstance(example_inputs, dict):
+                    new_example_inputs = {}
+                    for k in example_inputs.keys():
+                        if isinstance(example_inputs[k], torch.Tensor) and example_inputs[k].dim() ==4:
+                            new_example_inputs[k] = example_inputs[k].to(memory_format=torch.channels_last)
+                        else:
+                            new_example_inputs[k] = example_inputs[k]
+                    example_inputs = new_example_inputs
+            except Exception:
+                pass
 
         # So we can check for correct gradients without eliminating the dropout computation
         for attr in dir(config):

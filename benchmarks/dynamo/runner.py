@@ -80,6 +80,10 @@ TABLE = {
         "trt": "-n100 --speedup-trt",
         "ts_nvfuser_cudagraphs": "--backend=cudagraphs_ts",
         "inductor": "-n50 --inductor",
+        "ofi": "--backend=ofi",
+        "ipex": "--backend=ipex --float32",
+        "onnxrt_cpu": "--backend=onnxrt_cpu",
+        "onednn": "--backend=onednn",
     },
 }
 
@@ -274,6 +278,12 @@ def parse_args():
         default=None,
         help="number of threads to use for eager and inductor.",
     )
+    parser.add_argument(
+        "--channels-last",
+        action="store_true",
+        default=False,
+        help="use channels last format",
+    )
     launcher_group = parser.add_argument_group("CPU Launcher Parameters")
     launcher_group.add_argument(
         "--enable_cpu_launcher",
@@ -375,6 +385,9 @@ def generate_commands(args, dtypes, suites, devices, compilers, output_dir):
 
                     if args.threads is not None:
                         cmd = f"{cmd} --threads {args.threads}"
+
+                    if args.channels_last:
+                        cmd = f"{cmd} --channels-last"
                     lines.append(cmd)
                 lines.append("")
         runfile.writelines([line + "\n" for line in lines])

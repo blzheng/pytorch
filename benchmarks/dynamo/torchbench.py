@@ -299,6 +299,37 @@ class TorchBenchmarkRunner(BenchmarkRunner):
         # current_device = device
         # current_name = benchmark.name
 
+        if self.args.channels_last:
+            try:
+                model = model.to(memory_format=torch.channels_last).eval()
+                if isinstance(example_inputs, torch.Tensor) and example_inputs.dim()==4:
+                    example_inputs = example_inputs.to(memory_format=torch.channels_last)
+                elif isinstance(example_inputs, tuple):
+                    new_example_inputs = []
+                    for item in example_inputs:
+                        if isinstance(item, torch.Tensor) and item.dim()==4:
+                            new_example_inputs.append(item.to(memory_format=torch.channels_last))
+                        else:
+                            new_example_inputs.append(item)
+                    example_inputs = tuple(new_example_inputs)
+                elif isinstance(example_inputs, list):
+                    new_example_inputs = []
+                    for item in example_inputs:
+                        if isinstance(item, torch.Tensor) and item.dim()==4:
+                            new_example_inputs.append(item.to(memory_format=torch.channels_last))
+                        else:
+                            new_example_inputs.append(item)
+                    example_inputs = new_example_inputs
+                elif isinstance(example_inputs, dict):
+                    new_example_inputs = {}
+                    for k in example_inputs.keys():
+                        if isinstance(example_inputs[k], torch.Tensor) and example_inputs[k].dim() ==4:
+                            new_example_inputs[k] = example_inputs[k].to(memory_format=torch.channels_last)
+                        else:
+                            new_example_inputs[k] = example_inputs[k]
+                    example_inputs = new_example_inputs
+            except Exception:
+                pass
         if self.args.trace_on_xla:
             # work around for: https://github.com/pytorch/xla/issues/4174
             import torch_xla  # noqa: F401
