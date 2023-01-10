@@ -1197,8 +1197,8 @@ class CppVecKernelChecker(CppVecKernel):
         if _indirect_indexing:
             return False
 
-        _loop_var_irrevelant = self.is_var_irrevelant(var, index)
-        _single_step = self.is_single_step_var(var, index)
+        _loop_var_irrevelant = self.is_invariant_under(var, index)
+        _single_step = self.is_stride1_at(var, index)
         if not _single_step and not _loop_var_irrevelant:
             return False
 
@@ -1459,7 +1459,7 @@ class CppVecKernelChecker(CppVecKernel):
                 # Pick the most inner loop variable since we always vectorize the
                 # most inner loop
                 most_inner_var = self.itervars[-1]
-                most_inner_loop_irrevelant = self.is_var_irrevelant(
+                most_inner_loop_irrevelant = self.is_invariant_under(
                     most_inner_var, expr
                 )
                 if not most_inner_loop_irrevelant:
