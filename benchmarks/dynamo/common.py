@@ -2048,7 +2048,7 @@ def run(runner, args, original_dir=None):
             else:
                 assert args.float32, "IPEX only supports fp32 and bf16 for now."
                 optimize_ctx = torch._dynamo.optimize(
-                    backends.ipex_fp32, nopython=args.nopython
+                    backends.ipex, nopython=args.nopython
                 )
         else:
             optimize_ctx = torch._dynamo.optimize(args.backend, nopython=args.nopython)

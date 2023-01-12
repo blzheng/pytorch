@@ -194,8 +194,10 @@ class TestOptimizations(torch._dynamo.test_case.TestCase):
         model = model.eval()
         input = torch.randn(8, 3, 64, 64).contiguous(memory_format=torch.channels_last)
         r1 = model(input)
-        opt_model = torch._dynamo.optimize(backends.ipex_fp32)(model)
+        opt_model = torch._dynamo.optimize("ipex")(model)
         with torch.no_grad():
+            r2 = opt_model(input)
+            r2 = opt_model(input)
             r2 = opt_model(input)
         self.assertTrue(same(r1, r2))
         self.assertEqual(r2.dtype, torch.float32)
@@ -207,8 +209,10 @@ class TestOptimizations(torch._dynamo.test_case.TestCase):
         model = model.eval()
         input = torch.randn(8, 3, 64, 64).contiguous(memory_format=torch.channels_last)
         r1 = model(input)
-        opt_model = torch._dynamo.optimize(backends.ipex_bf16)(model)
+        opt_model = torch._dynamo.optimize("ipex")(model)
         with torch.no_grad(), torch.cpu.amp.autocast():
+            r2 = opt_model(input)
+            r2 = opt_model(input)
             r2 = opt_model(input)
         self.assertTrue(same(r1, r2.float(), tol=0.1))
         self.assertEqual(r2.dtype, torch.bfloat16)
